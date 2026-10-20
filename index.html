@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Музыкальный тренажёр PRO</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    color: #2d3748;
+  }
+  .app {
+    background: #fff;
+    border-radius: 20px;
+    padding: 20px;
+    max-width: 540px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    max-height: 96vh;
+    overflow-y: auto;
+  }
+  h1 { font-size: 1.2rem; text-align: center; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #718096; font-size: 0.8rem; margin-bottom: 14px; }
+
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
+  .timer {
+    font-size: 0.9rem; font-weight: 700; color: #2a5298;
+    background: #ebf2ff; padding: 6px 12px; border-radius: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+  .timer.warn { color: #c53030; background: #fff5f5; }
+  .settings-btn {
+    background: #edf2f7; border: none; border-radius: 20px;
+    padding: 6px 12px; font-size: 0.85rem; cursor: pointer; color: #4a5568;
+  }
+
+  .settings-panel {
+    background: #f7fafc; border-radius: 12px; padding: 14px;
+    margin-bottom: 14px; display: none;
+  }
+  .settings-panel.show { display: block; }
+  .setting-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; font-size: 0.88rem;
+  }
+  .setting-row label { color: #4a5568; }
+  .setting-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #2a5298; }
+  .setting-row select {
+    padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e0;
+    font-size: 0.85rem; background: #fff; cursor: pointer;
+  }
+
+  .modes { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .mode-btn {
+    flex: 1; min-width: 80px; padding: 9px 4px; border: 2px solid #e2e8f0; background: #fff;
+    border-radius: 10px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+    color: #4a5568; transition: all 0.2s;
+  }
+  .mode-btn.active { border-color: #2a5298; background: #ebf2ff; color: #2a5298; }
+
+  .submodes { display: flex; gap: 6px; margin-bottom: 12px; }
+  .submode-btn {
+    flex: 1; padding: 7px; border: none; border-radius: 8px;
+    background: #edf2f7; color: #718096; font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .submode-btn.active { background: #2a5298; color: #fff; }
+
+  .card {
+    perspective: 1200px; height: 260px; margin-bottom: 12px; cursor: pointer;
+  }
+  .card-inner {
+    position: relative; width: 100%; height: 100%;
+    transition: transform 0.5s; transform-style: preserve-3d;
+  }
+  .card.flipped .card-inner { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute; width: 100%; height: 100%;
+    backface-visibility: hidden; border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 12px;
+  }
+  .card-front { background: #f7f9ff; border: 2px solid #dbe4ff; }
+  .card-back { background: #2a5298; color: #fff; transform: rotateY(180deg); }
+
+  .card-front svg { width: 100%; max-width: 320px; height: 180px; }
+  .card-question { font-size: 1rem; font-weight: 600; text-align: center; color: #2d3748; margin-top: 8px; }
+  .card-answer { font-size: 1.9rem; font-weight: 700; }
+  .card-answer-sub { font-size: 0.9rem; opacity: 0.85; margin-top: 6px; text-align: center; }
+
+  .hint { text-align: center; font-size: 0.78rem; color: #a0aec0; margin-bottom: 12px; }
+
+  .stats { display: flex; justify-content: space-between; font-size: 0.82rem; color: #718096; margin-bottom: 10px; }
+  .stats b { color: #2a5298; }
+
+  .controls { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; padding: 12px; border: none; border-radius: 12px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: transform 0.1s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-know { background: #48bb78; color: #fff; }
+  .btn-again { background: #ed8936; color: #fff; }
+  .btn-reset { width: 100%; margin-top: 10px; background: #e2e8f0; color: #4a5568; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .piano-wrap { padding: 6px 0; }
+  .piano {
+    position: relative; height: 150px; display: flex;
+    background: #2d3748; border-radius: 8px; padding: 6px;
+    user-select: none;
+  }
+  .key-white {
+    flex: 1; background: #fff; border-radius: 0 0 6px 6px;
+    border-right: 1px solid #cbd5e0; position: relative;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 6px; font-size: 0.6rem; color: #a0aec0;
+    cursor: pointer; transition: background 0.1s;
+  }
+  .key-white:last-child { border-right: none; }
+  .key-white:active, .key-white.pressed { background: #ebf2ff; }
+  .key-white.correct { background: #c6f6d5 !important; }
+  .key-white.wrong { background: #fed7d7 !important; }
+  .key-black {
+    position: absolute; width: 8%; height: 60%; background: #1a202c;
+    border-radius: 0 0 4px 4px; top: 6px; cursor: pointer;
+    z-index: 2; transition: background 0.1s;
+  }
+  .key-black:active, .key-black.pressed { background: #4a5568; }
+  .key-black.correct { background: #38a169 !important; }
+  .key-black.wrong { background: #e53e3e !important; }
+
+  .piano-feedback {
+    text-align: center; font-size: 0.9rem; margin-top: 8px; min-height: 20px; font-weight: 600;
+  }
+  .piano-feedback.ok { color: #38a169; }
+  .piano-feedback.bad { color: #e53e3e; }
+
+  /* Режим НА СЛУХ */
+  .ear-area {
+    text-align: center;
+    padding: 20px 10px;
+  }
+  .ear-icon {
+    font-size: 5rem;
+    margin-bottom: 10px;
+    display: inline-block;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+  .ear-icon.playing { animation: pulse 0.4s infinite; }
+  .ear-question {
+    font-size: 1.05rem; font-weight: 600; color: #2d3748; margin-bottom: 16px;
+  }
+  .play-btn {
+    width: 80px; height: 80px; border-radius: 50%; border: none;
+    background: linear-gradient(135deg, #667eea, #2a5298); color: #fff;
+    font-size: 2rem; cursor: pointer; margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 20px rgba(42,82,152,0.4);
+    transition: transform 0.1s;
+  }
+  .play-btn:active { transform: scale(0.93); }
+  .play-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .ear-options {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-top: 12px;
+  }
+  .ear-option {
+    padding: 14px 6px; border: 2px solid #e2e8f0; border-radius: 12px;
+    background: #fff; cursor: pointer; font-size: 1rem; font-weight: 700;
+    color: #2d3748; transition: all 0.2s;
+  }
+  .ear-option:hover:not(.disabled) { border-color: #2a5298; background: #ebf2ff; }
+  .ear-option.correct { border-color: #48bb78; background: #f0fff4; color: #2f855a; }
+  .ear-option.wrong { border-color: #f56565; background: #fff5f5; color: #c53030; }
+  .ear-option.disabled { cursor: default; }
+
+  .ear-feedback {
+    text-align: center; font-size: 0.95rem; margin-top: 14px;
+    font-weight: 600; min-height: 22px;
+  }
+  .ear-feedback.ok { color: #38a169; }
+  .ear-feedback.bad { color: #e53e3e; }
+
+  .done { text-align: center; padding: 20px 0; }
+  .done h2 { font-size: 1.5rem; color: #2a5298; margin-bottom: 10px; }
+  .done p { color: #718096; margin-bottom: 6px; }
+
+  .staff-line { stroke: #4a5568; stroke-width: 1.2; }
+  .note-head { fill: #2d3748; }
+  .note-stem { stroke: #2d3748; stroke-width: 1.6; }
+  .clef { fill: #2d3748; }
+
+  @media (max-width: 480px) {
+    .app { padding: 14px; }
+    .card { height: 220px; }
+    .card-front svg { height: 150px; }
+    .card-answer { font-size: 1.6rem; }
+    .ear-options { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>🎼 Музыкальный тренажёр PRO</h1>
+  <p class="subtitle">Ноты, символы, слух</p>
+
+  <div class="top-bar">
+    <div class="timer" id="timer">⏱ 00:00</div>
+    <button class="settings-btn" id="settingsBtn">⚙️ Настройки</button>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <div class="setting-row">
+      <label>🔊 Звук при перевороте</label>
+      <input type="checkbox" id="optSound" checked>
+    </div>
+    <div class="setting-row">
+      <label>⏱ Таймер</label>
+      <input type="checkbox" id="optTimer" checked>
+    </div>
+    <div class="setting-row">
+      <label>🎲 Перемешивать</label>
+      <input type="checkbox" id="optShuffle" checked>
+    </div>
+    <div class="setting-row">
+      <label>♯ Знаки альтерации</label>
+      <input type="checkbox" id="optAccidental">
+    </div>
+    <div class="setting-row">
+      <label>🎚 Скорость звука</label>
+      <select id="optSpeed">
+        <option value="0.5">Медленно</option>
+        <option value="0.8" selected>Средне</option>
+        <option value="1.2">Быстро</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="modes">
+    <button class="mode-btn active" data-deck="treble">Скрипичный</button>
+    <button class="mode-btn" data-deck="bass">Басовый</button>
+    <button class="mode-btn" data-deck="symbols">Символы</button>
+  </div>
+
+  <div class="submodes" id="submodes">
+    <button class="submode-btn active" data-sub="cards">🃏 Карточки</button>
+    <button class="submode-btn" data-sub="piano">🎹 Пианино</button>
+    <button class="submode-btn" data-sub="ear">👂 На слух</button>
+  </div>
+
+  <div id="gameArea">
+    <div class="stats">
+      <span>Карточка <b id="pos">1</b>/<b id="total">1</b></span>
+      <span>Знаю: <b id="known">0</b> · Ошибок: <b id="errors">0</b></span>
+    </div>
+
+    <!-- КАРТОЧКИ -->
+    <div id="cardsMode">
+      <div class="card" id="card">
+        <div class="card-inner">
+          <div class="card-face card-front" id="front"></div>
+          <div class="card-face card-back" id="back"></div>
+        </div>
+      </div>
+      <p class="hint" id="cardHint">Нажми на карточку, чтобы перевернуть</p>
+      <div class="controls">
+        <button class="btn btn-again" id="againBtn">Ещё раз</button>
+        <button class="btn btn-know" id="knowBtn">Знаю ✓</button>
+      </div>
+    </div>
+
+    <!-- ПИАНИНО -->
+    <div id="pianoMode" style="display:none;">
+      <div class="card" id="noteCard" style="height:200px; cursor:default;">
+        <div class="card-inner">
+          <div class="card-face card-front" id="noteDisplay"></div>
+        </div>
+      </div>
+      <p class="hint">Найди эту ноту на клавиатуре</p>
+      <div class="piano-wrap">
+        <div class="piano" id="piano"></div>
+      </div>
+      <div class="piano-feedback" id="pianoFb"></div>
+      <button class="btn btn-reset" id="pianoNextBtn" style="display:none; margin-top:8px;">Следующая нота →</button>
+    </div>
+
+    <!-- НА СЛУХ -->
+    <div id="earMode" style="display:none;">
+      <div class="ear-area">
+        <div class="ear-icon" id="earIcon">👂</div>
+        <div class="ear-question" id="earQuestion">Послушай ноту и выбери ответ</div>
+        <button class="play-btn" id="playBtn" title="Прослушать">▶</button>
+        <div class="ear-options" id="earOptions"></div>
+        <div class="ear-feedback" id="earFb"></div>
+        <button class="btn btn-reset" id="earNextBtn" style="display:none; margin-top:10px;">Следующая нота →</button>
+      </div>
+    </div>
+
+    <button class="btn btn-reset" id="resetBtn">🔄 Сбросить прогресс</button>
+  </div>
+
+  <div class="done" id="doneScreen" style="display:none;">
+    <h2>🏆 Колода пройдена!</h2>
+    <p id="doneStats"></p>
+    <button class="btn btn-know" style="margin-top:14px;" id="restartBtn">Начать заново</button>
+  </div>
+</div>
+
+<script>
+const STAFF_TOP = 60, LINE_GAP = 12;
+const lineY = i => STAFF_TOP + i * LINE_GAP;
+const stepY = s => lineY(4) - s * (LINE_GAP / 2);
+
+function staffSVG(step, clef = 'treble', accidental = '') {
+  const cx = 180;
+  let svg = `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg">`;
+  for (let i = 0; i < 5; i++) {
+    svg += `<line class="staff-line" x1="40" y1="${lineY(i)}" x2="290" y2="${lineY(i)}"/>`;
+  }
+  if (clef === 'treble') {
+    svg += `<text class="clef" x="55" y="${lineY(3)+8}" font-size="58" font-family="Georgia">𝄞</text>`;
+  } else {
+    svg += `<text class="clef" x="52" y="${lineY(1)+14}" font-size="46" font-family="Georgia">𝄢</text>`;
+  }
+  const y = stepY(step);
+  if (y < lineY(0)) {
+    for (let ly = lineY(0) - LINE_GAP; ly >= y - 1; ly -= LINE_GAP) {
+      if (ly >= y - 1) svg += `<line class="staff-line" x1="${cx-16}" y1="${ly}" x2="${cx+16}" y2="${ly}"/>`;
+    }
+  }
+  if (y > lineY(4)) {
+    for (let ly = lineY(4) + LINE_GAP; ly <= y + 1; ly += LINE_GAP) {
+      if (ly <= y + 1) svg += `<line class="staff-line" x1="${cx-16}" y1="${ly}" x2="${cx+16}" y2="${ly}"/>`;
+    }
+  }
+  svg += `<ellipse class="note-head" cx="${cx}" cy="${y}" rx="9" ry="6.5" transform="rotate(-15 ${cx} ${y})"/>`;
+  svg += `<line class="note-stem" x1="${cx+8}" y1="${y}" x2="${cx+8}" y2="${y-38}"/>`;
+  if (accidental) {
+    svg += `<text x="${cx-26}" y="${y+5}" font-size="20" fill="#2d3748">${accidental}</text>`;
+  }
+  svg += `</svg>`;
+  return svg;
+}
+
+const TREBLE = [
+  { ru: "До (C4)",  en: "C", step: -2, freq: 261.63 },
+  { ru: "Ре (D4)",  en: "D", step: -1, freq: 293.66 },
+  { ru: "Ми (E4)",  en: "E", step: 0, freq: 329.63 },
+  { ru: "Фа (F4)",  en: "F", step: 1, freq: 349.23 },
+  { ru: "Соль (G4)",en: "G", step: 2, freq: 392.00 },
+  { ru: "Ля (A4)",  en: "A", step: 3, freq: 440.00 },
+  { ru: "Си (B4)",  en: "B", step: 4, freq: 493.88 },
+  { ru: "До (C5)",  en: "C", step: 5, freq: 523.25 },
+  { ru: "Ре (D5)",  en: "D", step: 6, freq: 587.33 },
+  { ru: "Ми (E5)",  en: "E", step: 7, freq: 659.25 },
+  { ru: "Фа (F5)",  en: "F", step: 8, freq: 698.46 },
+  { ru: "Соль (G5)",en: "G", step: 9, freq: 783.99 },
+];
+
+const BASS = [
+  { ru: "До (C3)",  en: "C", step: -2, freq: 130.81 },
+  { ru: "Ре (D3)",  en: "D", step: -1, freq: 146.83 },
+  { ru: "Ми (E3)",  en: "E", step: 0, freq: 164.81 },
+  { ru: "Фа (F3)",  en: "F", step: 1, freq: 174.61 },
+  { ru: "Соль (G3)",en: "G", step: 2, freq: 196.00 },
+  { ru: "Ля (A3)",  en: "A", step: 3, freq: 220.00 },
+  { ru: "Си (B3)",  en: "B", step: 4, freq: 246.94 },
+  { ru: "До (C4)",  en: "C", step: 5, freq: 261.63 },
+  { ru: "Ре (D4)",  en: "D", step: 6, freq: 293.66 },
+  { ru: "Ми (E4)",  en: "E", step: 7, freq: 329.63 },
+  { ru: "Фа (F4)",  en: "F", step: 8, freq: 349.23 },
+];
+
+const SYMBOLS = [
+  { q: "🎵 Что это за знак?", a: "Нота", sub: "Основной знак для записи звука" },
+  { q: "𝄞 Что это за ключ?", a: "Скрипичный ключ", sub: "Соль-ключ, для высоких голосов" },
+  { q: "𝄢 Что это за ключ?", a: "Басовый ключ", sub: "Фа-ключ, для низких голосов" },
+  { q: "♯ Что означает этот знак?", a: "Диез", sub: "Повышает ноту на полутон" },
+  { q: "♭ Что означает этот знак?", a: "Бемоль", sub: "Понижает ноту на полутон" },
+  { q: "♮ Что означает этот знак?", a: "Бекар", sub: "Отменяет диез или бемоль" },
+  { q: "Что такое такт?", a: "Отрезок между тактовыми чертами", sub: "Делит музыку на равные части" },
+  { q: "Что показывает размер 4/4?", a: "4 доли в такте", sub: "Четвертная нота = 1 доля" },
+  { q: "Что такое пауза?", a: "Молчание в музыке", sub: "Перерыв в звучании" },
+  { q: "🎼 Что это?", a: "Нотный стан", sub: "Пять линий для записи нот" },
+  { q: "Что такое октава?", a: "8 ступеней", sub: "Расстояние между одинаковыми нотами" },
+  { q: "Что такое темп?", a: "Скорость исполнения", sub: "Adagio, Andante, Allegro..." },
+  { q: "Что такое динамика?", a: "Громкость звучания", sub: "p — тихо, f — громко" },
+  { q: "Что означает p (пиано)?", a: "Тихо", sub: "Piano — мягко, тихо" },
+  { q: "Что означает f (форте)?", a: "Громко", sub: "Forte — сильно, громко" },
+  { q: "Что такое аккорд?", a: "3+ звука одновременно", sub: "Созвучие из нескольких нот" },
+];
+
+const S = {
+  deck: 'treble',
+  sub: 'cards',
+  cards: [],
+  knownSet: new Set(),
+  current: 0,
+  flipped: false,
+  errors: 0,
+  sound: true,
+  timerOn: true,
+  shuffle: true,
+  accidentals: false,
+  speed: 0.8,
+  seconds: 0,
+  timerId: null,
+  timerRunning: false,
+};
+
+const $ = id => document.getElementById(id);
+const STORAGE_KEY = 'musicTrainerProgress_v1';
+
+// ===== ЗВУК =====
+let audioCtx = null;
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playTone(freq, duration = 0.6) {
+  if (!S.sound) return;
+  try {
+    const ctx = getCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch(e) {}
+}
+
+// ===== ТАЙМЕР =====
+function startTimer() {
+  if (!S.timerOn) return;
+  if (S.timerRunning) return;
+  S.timerRunning = true;
+  S.timerId = setInterval(() => { S.seconds++; updateTimerDisplay(); }, 1000);
+}
+function stopTimer() {
+  S.timerRunning = false;
+  if (S.timerId) clearInterval(S.timerId);
+  S.timerId = null;
+}
+function resetTimer() { stopTimer(); S.seconds = 0; updateTimerDisplay(); }
+function updateTimerDisplay() {
+  const m = String(Math.floor(S.seconds / 60)).padStart(2, '0');
+  const s = String(S.seconds % 60).padStart(2, '0');
+  const el = $('timer');
+  el.textContent = `⏱ ${m}:${s}`;
+  el.classList.toggle('warn', S.seconds >= 120);
+}
+
+// ===== LOCALSTORAGE =====
+function saveProgress() {
+  const data = {
+    deck: S.deck,
+    known: [...S.knownSet],
+    errors: S.errors,
+    seconds: S.seconds,
+    settings: {
+      sound: S.sound, timerOn: S.timerOn, shuffle: S.shuffle,
+      accidentals: S.accidentals, speed: S.speed
+    }
+  };
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+function clearProgress() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+}
+
+// ===== КОЛОДЫ =====
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function applyAccidentals(notes, clef) {
+  const result = [];
+  notes.forEach(n => {
+    result.push({ ...n, clef });
+    if (Math.random() < 0.5) {
+      result.push({ ...n, clef, acc: '♯', ru: n.ru + '♯', freq: n.freq * Math.pow(2, 1/12) });
+    } else {
+      result.push({ ...n, clef, acc: '♭', ru: n.ru + '♭', freq: n.freq * Math.pow(2, -1/12) });
+    }
+  });
+  return result;
+}
+
+function buildDeck(name, fromStorage = false) {
+  S.deck = name;
+  let raw;
+  if (name === 'treble') raw = TREBLE.map(c => ({ type: 'note', clef: 'treble', ...c }));
+  else if (name === 'bass') raw = BASS.map(c => ({ type: 'note', clef: 'bass', ...c }));
+  else raw = SYMBOLS.map(c => ({ type: 'symbol', ...c }));
+
+  if (S.accidentals && name !== 'symbols') raw = applyAccidentals(raw, name);
+  S.cards = S.shuffle ? shuffle(raw) : raw;
+
+  let restored = false;
+  if (fromStorage) {
+    const saved = loadProgress();
+    if (saved && saved.deck === name) {
+      S.knownSet = new Set(saved.known.filter(i => i < S.cards.length));
+      S.errors = saved.errors || 0;
+      S.seconds = saved.seconds || 0;
+      restored = true;
+    } else {
+      S.knownSet = new Set(); S.errors = 0; S.seconds = 0;
+    }
+  } else {
+    S.knownSet = new Set(); S.errors = 0; S.seconds = 0;
+  }
+
+  S.current = 0;
+  S.flipped = false;
+  resetTimer();
+  updateTimerDisplay();
+  if (!restored) saveProgress();
+  routeSubmode();
+}
+
+function routeSubmode() {
+  $('doneScreen').style.display = 'none';
+  $('gameArea').style.display = 'block';
+  $('cardsMode').style.display = S.sub === 'cards' ? 'block' : 'none';
+  $('pianoMode').style.display = S.sub === 'piano' ? 'block' : 'none';
+  $('earMode').style.display = S.sub === 'ear' ? 'block' : 'none';
+  // Скрываем выбор подрежима для символов (только карточки)
+  $('submodes').style.display = S.deck === 'symbols' ? 'none' : 'flex';
+
+  if (S.knownSet.size === S.cards.length && S.cards.length > 0) {
+    showDone();
+    return;
+  }
+
+  if (S.sub === 'cards') renderCards();
+  else if (S.sub === 'piano' && S.deck !== 'symbols') startPianoMode();
+  else if (S.sub === 'ear' && S.deck !== 'symbols') startEarMode();
+  else { S.sub = 'cards'; renderCards(); }
+}
+
+// ===== КАРТОЧКИ =====
+function renderCards() {
+  if (S.knownSet.size === S.cards.length && S.cards.length > 0) { showDone(); return; }
+  const unlearned = S.cards.map((_, i) => i).filter(i => !S.knownSet.has(i));
+  if (!unlearned.includes(S.current)) S.current = unlearned[0];
+
+  const card = S.cards[S.current];
+  $('pos').textContent = S.knownSet.size + 1;
+  $('total').textContent = S.cards.length;
+  $('known').textContent = S.knownSet.size;
+  $('errors').textContent = S.errors;
+
+  const cardEl = $('card');
+  cardEl.classList.remove('flipped');
+  S.flipped = false;
+
+  if (card.type === 'note') {
+    $('front').innerHTML = staffSVG(card.step, card.clef, card.acc || '');
+  } else {
+    $('front').innerHTML = `<div class="card-question">${card.q}</div>`;
+  }
+
+  if (card.type === 'note') {
+    $('back').innerHTML = `
+      <div class="card-answer">${card.ru.split(' ')[0]}</div>
+      <div class="card-answer-sub">${card.en} · ${card.ru.match(/\((.*?)\)/)?.[1] || ''}</div>
+    `;
+  } else {
+    $('back').innerHTML = `
+      <div class="card-answer" style="font-size:1.4rem;">${card.a}</div>
+      <div class="card-answer-sub">${card.sub || ''}</div>
+    `;
+  }
+  startTimer();
+}
+
+function flipCard() {
+  S.flipped = !S.flipped;
+  $('card').classList.toggle('flipped', S.flipped);
+  if (S.flipped && S.sound) {
+    const card = S.cards[S.current];
+    if (card.type === 'note' && card.freq) playTone(card.freq, 0.7 * S.speed);
+    else playTone(523.25, 0.15);
+  }
+}
+
+function markKnown() {
+  S.knownSet.add(S.current);
+  saveProgress();
+  const unlearned = S.cards.map((_, i) => i).filter(i => !S.knownSet.has(i));
+  if (unlearned.length === 0) showDone();
+  else { S.current = unlearned[0]; renderCards(); }
+}
+function markAgain() {
+  S.errors++;
+  saveProgress();
+  const unlearned = S.cards.map((_, i) => i).filter(i => !S.knownSet.has(i) && i !== S.current);
+  if (unlearned.length > 0) S.current = unlearned[0];
+  renderCards();
+}
+
+function showDone() {
+  stopTimer();
+  $('gameArea').style.display = 'none';
+  $('doneScreen').style.display = 'block';
+  const m = String(Math.floor(S.seconds / 60)).padStart(2, '0');
+  const s = String(S.seconds % 60).padStart(2, '0');
+  $('doneStats').innerHTML = `Время: <b>${m}:${s}</b><br>Ошибок: <b>${S.errors}</b><br>Карточек: <b>${S.cards.length}</b>`;
+  if (S.sound) {
+    playTone(523.25, 0.15);
+    setTimeout(() => playTone(659.25, 0.15), 150);
+    setTimeout(() => playTone(783.99, 0.3), 300);
+  }
+}
+
+// ===== ПИАНИНО =====
+const PIANO_KEYS = [
+  { note: 'C',  freq: 261.63, black: false, label: 'C' },
+  { note: 'C#', freq: 277.18, black: true,  label: '' },
+  { note: 'D',  freq: 293.66, black: false, label: 'D' },
+  { note: 'D#', freq: 311.13, black: true,  label: '' },
+  { note: 'E',  freq: 329.63, black: false, label: 'E' },
+  { note: 'F',  freq: 349.23, black: false, label: 'F' },
+  { note: 'F#', freq: 369.99, black: true,  label: '' },
+  { note: 'G',  freq: 392.00, black: false, label: 'G' },
+  { note: 'G#', freq: 415.30, black: true,  label: '' },
+  { note: 'A',  freq: 440.00, black: false, label: 'A' },
+  { note: 'A#', freq: 466.16, black: true,  label: '' },
+  { note: 'B',  freq: 493.88, black: false, label: 'B' },
+  { note: 'C2', freq: 523.25, black: false, label: 'C' },
+];
+
+let pianoTarget = null;
+let pianoAnswered = false;
+
+function buildPiano() {
+  const piano = $('piano');
+  piano.innerHTML = '';
+  const whiteCount = PIANO_KEYS.filter(k => !k.black).length;
+  PIANO_KEYS.forEach(k => {
+    if (k.black) return;
+    const div = document.createElement('div');
+    div.className = 'key-white';
+    div.dataset.note = k.note;
+    div.dataset.freq = k.freq;
+    div.textContent = k.label;
+    div.onclick = () => handlePianoClick(k, div);
+    piano.appendChild(div);
+  });
+  PIANO_KEYS.forEach((k, i) => {
+    if (!k.black) return;
+    let whiteBefore = -1;
+    for (let j = 0; j < i; j++) if (!PIANO_KEYS[j].black) whiteBefore++;
+    if (whiteBefore < 0) return;
+    const div = document.createElement('div');
+    div.className = 'key-black';
+    div.dataset.note = k.note;
+    div.dataset.freq = k.freq;
+    div.style.left = `calc(${(whiteBefore + 1) * (100 / whiteCount)}% - 4%)`;
+    div.onclick = (e) => { e.stopPropagation(); handlePianoClick(k, div); };
+    piano.appendChild(div);
+  });
+}
+
+function startPianoMode() {
+  buildPiano();
+  if (S.knownSet.size === S.cards.length && S.cards.length > 0) { showDone(); return; }
+  const unlearned = S.cards.map((_, i) => i).filter(i => !S.knownSet.has(i));
+  if (!unlearned.includes(S.current)) S.current = unlearned[0];
+  const card = S.cards[S.current];
+  if (card.type !== 'note') return;
+
+  pianoTarget = card;
+  pianoAnswered = false;
+
+  $('pos').textContent = S.knownSet.size + 1;
+  $('total').textContent = S.cards.length;
+  $('known').textContent = S.knownSet.size;
+  $('errors').textContent = S.errors;
+
+  $('noteDisplay').innerHTML = staffSVG(card.step, card.clef, card.acc || '');
+  $('pianoFb').textContent = '';
+  $('pianoFb').className = 'piano-feedback';
+  $('pianoNextBtn').style.display = 'none';
+  document.querySelectorAll('.key-white, .key-black').forEach(k => k.classList.remove('correct', 'wrong'));
+  startTimer();
+}
+
+function handlePianoClick(key, el) {
+  if (pianoAnswered) return;
+  playTone(key.freq, 0.5 * S.speed);
+  const targetNote = pianoTarget.en;
+  const targetFreq = pianoTarget.freq;
+  const isCorrect = Math.abs(key.freq - targetFreq) < 5 ||
+                    (key.note.replace('2','') === targetNote && Math.abs(key.freq - targetFreq) < 50);
+  pianoAnswered = true;
+  const fb = $('pianoFb');
+  if (isCorrect) {
+    el.classList.add('correct');
+    fb.textContent = '✅ Правильно!';
+    fb.className = 'piano-feedback ok';
+    S.knownSet.add(S.current);
+    saveProgress();
+    setTimeout(() => {
+      if (S.knownSet.size === S.cards.length) { showDone(); return; }
+      const unlearned = S.cards.map((_, i) => i).filter(i => !S.knownSet.has(i));
+      S.current = unlearned[0];
+      startPianoMode();
+    }, 1200);
+  } else {
+    el.classList.add('wrong');
+    fb.textContent = `❌ Неверно. Это ${pianoTarget.ru}`;
+    fb.className = 'piano-feedback bad';
+    S.errors++;
+    saveProgress();
+    const correctKey = [...document.querySelectorAll('.key-white, .key-black')]
+      .find(k => Math.abs(parseFloat(k.dataset.freq) - targetFreq) < 5);
+    if (correctKey) correctKey.classList.add('correct');
+    $('pianoNextBtn').style.display = 'block';
+  }
+}
+function pianoNext() {
+  if (S.knownSet.size === S.cards.length) { showDone(); return; }
+  const unlearned = S.cards.map((_, i) => i).filter(i => !S.knownSet.has(i));
+  if (unlearned.length === 0) { showDone(); return; }
+  S.current = unlearned[0];
+  startPianoMode();
+}
+
+// ===== НА СЛУХ =====
+let earTarget = null;
+let earAnswered = false;
+let earPlayCount = 0;
+
+function startEarMode() {
+  if (S.knownSet.size === S.cards.length && S.cards.length > 0) { showDone(); return; }
+  const unlearned = S.cards.map((_, i) => i).filter(i => !S.knownSet.has(i));
+  if (!unlearned.includes(S.current)) S.current = unlearned[0];
+  const card = S.cards[S.current];
+  if (card.type !== 'note') return;
+
+  earTarget = card;
+  earAnswered = false;
+  earPlayCount = 0;
+
+  $('pos').textContent = S.knownSet.size + 1;
+  $('total').textContent = S.cards.length;
+  $('known').textContent = S.knownSet.size;
+  $('errors').textContent = S.errors;
+
+  $('earQuestion').textContent = 'Послушай ноту и выбери ответ';
+  $('earFb').textContent = '';
+  $('earFb').className = 'ear-feedback';
+  $('earNextBtn').style.display = 'none';
+  $('playBtn').disabled = false;
+  $('earIcon').classList.remove('playing');
+
+  // Варианты ответов: 6 штук, включая правильный
+  const allNotes = S.deck === 'bass' ? BASS : TREBLE;
+  // Убираем дубли имён нот (разные октавы) — сравниваем по названию буквы
+  const pool = [];
+  const seenNames = new Set();
+  allNotes.forEach(n => {
+    if (!seenNames.has(n.en)) {
+      seenNames.add(n.en);
+      pool.push({ label: n.en, ru: n.ru, freq: n.freq, en: n.en });
+    }
+  });
+  // Если альтерации включены — добавляем варианты
+  const targetLabel = card.acc ? card.en + card.acc : card.en;
+
+  // Формируем варианты
+  const correctOpt = { label: targetLabel, ru: card.ru, freq: card.freq, en: card.en, acc: card.acc || '' };
+  const others = pool.filter(p => p.en !== card.en);
+  const shuffledOthers = shuffle(others).slice(0, 5);
+  const options = shuffle([correctOpt, ...shuffledOthers]);
+
+  const optsEl = $('earOptions');
+  optsEl.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'ear-option';
+    btn.textContent = opt.label;
+    btn.onclick = () => handleEarClick(opt, btn);
+    optsEl.appendChild(btn);
+  });
+
+  // Автовоспроизведение через 400мс после старта
+  setTimeout(() => playEarNote(), 400);
+  startTimer();
+}
+
+function playEarNote() {
+  if (!earTarget) return;
+  earPlayCount++;
+  $('earIcon').classList.add('playing');
+  playTone(earTarget.freq, 0.8 * S.speed);
+  setTimeout(() => $('earIcon').classList.remove('playing'), 800 * S.speed);
+}
+
+function handleEarClick(opt, btn) {
+  if (earAnswered) return;
+  earAnswered = true;
+  const fb = $('earFb');
+  const correctLabel = earTarget.acc ? earTarget.en + earTarget.acc : earTarget.en;
+  const isCorrect = opt.label === correctLabel ||
+    (opt.en === earTarget.en && !earTarget.acc && !opt.acc);
+
+  document.querySelectorAll('.ear-option').forEach(b => b.classList.add('disabled'));
+
+  if (isCorrect) {
+    btn.classList.add('correct');
+    fb.textContent = '✅ Правильно!';
+    fb.className = 'ear-feedback ok';
+    S.knownSet.add(S.current);
+    saveProgress();
+    setTimeout(() => {
+      if (S.knownSet.size === S.cards.length) { showDone(); return; }
+      const unlearned = S.cards.map((_, i) => i).filter(i => !S.knownSet.has(i));
+      S.current = unlearned[0];
+      startEarMode();
+    }, 1300);
+  } else {
+    btn.classList.add('wrong');
+    fb.textContent = `❌ Неверно. Это ${earTarget.ru}`;
+    fb.className = 'ear-feedback bad';
+    S.errors++;
+    saveProgress();
+    // Подсветить правильный вариант
+    document.querySelectorAll('.ear-option').forEach(b => {
+      if (b.textContent === correctLabel) b.classList.add('correct');
+    });
+    $('earNextBtn').style.display = 'block';
+    // Проиграть правильную ноту для запоминания
+    playTone(earTarget.freq, 0.8 * S.speed);
+  }
+}
+
+function earNext() {
+  if (S.knownSet.size === S.cards.length) { showDone(); return; }
+  const unlearned = S.cards.map((_, i) => i).filter(i => !S.knownSet.has(i));
+  if (unlearned.length === 0) { showDone(); return; }
+  S.current = unlearned[0];
+  startEarMode();
+}
+
+// ===== СОБЫТИЯ =====
+function bindEvents() {
+  $('card').addEventListener('click', flipCard);
+  $('knowBtn').addEventListener('click', markKnown);
+  $('againBtn').addEventListener('click', markAgain);
+  $('resetBtn').addEventListener('click', () => { clearProgress(); buildDeck(S.deck); });
+  $('restartBtn').addEventListener('click', () => { clearProgress(); buildDeck(S.deck); });
+  $('pianoNextBtn').addEventListener('click', pianoNext);
+  $('playBtn').addEventListener('click', playEarNote);
+  $('earNextBtn').addEventListener('click', earNext);
+
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      buildDeck(btn.dataset.deck);
+    });
+  });
+
+  document.querySelectorAll('.submode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.submode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      S.sub = btn.dataset.sub;
+      routeSubmode();
+    });
+  });
+
+  $('settingsBtn').addEventListener('click', () => {
+    $('settingsPanel').classList.toggle('show');
+  });
+  $('optSound').addEventListener('change', e => { S.sound = e.target.checked; saveProgress(); });
+  $('optTimer').addEventListener('change', e => {
+    S.timerOn = e.target.checked; saveProgress();
+    if (S.timerOn) startTimer(); else stopTimer();
+  });
+  $('optShuffle').addEventListener('change', e => { S.shuffle = e.target.checked; saveProgress(); });
+  $('optAccidental').addEventListener('change', e => {
+    S.accidentals = e.target.checked; saveProgress();
+    buildDeck(S.deck);
+  });
+  $('optSpeed').addEventListener('change', e => { S.speed = parseFloat(e.target.value); saveProgress(); });
+}
+
+// ===== ИНИЦИАЛИЗАЦИЯ =====
+function init() {
+  bindEvents();
+  const saved = loadProgress();
+  if (saved && saved.settings) {
+    S.sound = saved.settings.sound ?? true;
+    S.timerOn = saved.settings.timerOn ?? true;
+    S.shuffle = saved.settings.shuffle ?? true;
+    S.accidentals = saved.settings.accidentals ?? false;
+    S.speed = saved.settings.speed ?? 0.8;
+    $('optSound').checked = S.sound;
+    $('optTimer').checked = S.timerOn;
+    $('optShuffle').checked = S.shuffle;
+    $('optAccidental').checked = S.accidentals;
+    $('optSpeed').value = S.speed;
+  }
+  const deckToLoad = saved?.deck || 'treble';
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.deck === deckToLoad);
+  });
+  buildDeck(deckToLoad, true);
+}
+
+init();
+</script>
+</body>
+</html>
